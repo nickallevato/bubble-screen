@@ -33,6 +33,9 @@
 #define PIN_BL   21
 
 static const int W = 240, H = 320, SKY = 286, STRIP = 16;   // portrait
+// BUBBLE_HOST builds the drawing code on a PC (tools/render) to make screenshots;
+// everything that touches hardware is left out of that build.
+#ifndef BUBBLE_HOST
 static spi_device_handle_t lcd;
 static uint16_t *dbuf[2];
 static spi_transaction_t trs[2];
@@ -96,6 +99,7 @@ static void lcd_init() {
   lcd_cmd(0x11); delay(120);  // sleep out
   lcd_cmd(0x29);              // display on (backlight stays off until the first frame lands)
 }
+#endif  // BUBBLE_HOST
 
 // ------------------------------------------------------- framebuffer -----
 // Each framebuffer is 20 strips of 16 rows (3.8 KB each) addressed through a row
@@ -113,6 +117,7 @@ static uint8_t C(uint32_t rgb) {
   return npal++;
 }
 
+#ifndef BUBBLE_HOST
 static void lcd_push(uint8_t *const *rows) {
   lcd_cmd_data(0x2A, {0, 0, (uint8_t)((W - 1) >> 8), (uint8_t)((W - 1) & 255)});
   lcd_cmd_data(0x2B, {0, 0, (uint8_t)((H - 1) >> 8), (uint8_t)((H - 1) & 255)});
@@ -129,6 +134,7 @@ static void lcd_push(uint8_t *const *rows) {
   }
   while (inflight--) { spi_transaction_t *r; spi_device_get_trans_result(lcd, &r, portMAX_DELAY); }
 }
+#endif  // BUBBLE_HOST
 
 // --------------------------------------------------------- drawing -------
 static const uint8_t BAYER[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
@@ -257,6 +263,7 @@ static void palettes() {
 
 // ------------------------------------------------------------ touch ------
 // XPT2046 on its own pins, bit-banged: a few hundred microseconds per read.
+#ifndef BUBBLE_HOST
 #define T_CLK  25
 #define T_MOSI 32
 #define T_MISO 39
@@ -278,6 +285,7 @@ static bool tp_read(int &rx, int &ry, int &rz) {
   rx = xs / 3; ry = ys / 3;
   return rz > 400;
 }
+#endif  // BUBBLE_HOST
 // Raw -> screen, from corner taps on this unit (2026-11-21): raw X runs
 // right-to-left (~3500 at the left edge, ~630 at the right), raw Y top-to-bottom
 // (~430 at the top, ~3470 just above the status strip).
@@ -520,7 +528,13 @@ static void frame(float t, float dt) {
     float ddx = TP.x - bx, ddy = TP.y - (by - 8); onBody = ddx * ddx + ddy * ddy < 54 * 54;
     if (!TP.was && onBody) tickle = fminf(1, tickle + .45f);
     if (TP.was) rub = rub * .8f + hypotf(TP.x - TP.px, TP.y - TP.py);
-    if (onBody) { if (rub > 2.5f) tickle = fminf(1, tickle + .1f * f); else if (t - TP.downAt > .35f) pet = fminf(1, pet + dt * 2); }
+    if (onBody) {
+      if (rub > 2.5f) tickle = fminf(1, tickle + .1f * f);
+      else {   // a still finger: the tap's giggle fades and petting takes over
+        tickle = fmaxf(0, tickle - dt * .9f);
+        if (t - TP.downAt > .35f) pet = fminf(1, pet + dt * 2);
+      }
+    }
   } else rub = 0;
   if (!(TP.down && onBody)) { tickle = fmaxf(0, tickle - dt * .7f); pet = fmaxf(0, pet - dt * 1.5f); }
   TP.px = TP.x; TP.py = TP.y; TP.was = TP.down;
@@ -736,6 +750,7 @@ static void frame(float t, float dt) {
 }
 
 // ------------------------------------------------------------ main -------
+#ifndef BUBBLE_HOST
 // Two framebuffers: core 1 (loop) draws the next frame while core 0 streams
 // the previous one to the panel.
 static Preferences prefs;
@@ -847,3 +862,4 @@ void loop() {
     statT = t; frames = renderUs = pushUs = 0;
   }
 }
+#endif  // BUBBLE_HOST

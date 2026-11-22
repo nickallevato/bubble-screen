@@ -6,11 +6,9 @@ Paperclip and serves it to the display at `GET /api/now`.
 ## Docker
 
 ```bash
-mkdir -p ~/bubble-screen && cd ~/bubble-screen
-cp -r /path/to/bubble-screen/service ./src
-cp src/deploy/compose.yml .
-cp src/.env.example .env && chmod 600 .env   # fill it in
-docker compose up -d --build
+cd service
+cp .env.example .env && chmod 600 .env   # fill it in
+docker compose -f deploy/compose.yml up -d --build
 curl -s -H "Authorization: Bearer $DEVICE_PSK" http://localhost:8000/api/now
 ```
 
