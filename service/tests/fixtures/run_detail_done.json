@@ -1,0 +1,17 @@
+{
+ "id": "4cd59357-5f39-41f4-8d41-0f013eb6dd17",
+ "agentId": "00000000-0000-4000-8000-0000000000a1",
+ "status": "succeeded",
+ "createdAt": "2030-11-21T23:04:07.212Z",
+ "startedAt": "2030-11-21T23:04:07.455Z",
+ "finishedAt": "2030-11-21T23:11:04.617Z",
+ "issueId": "d269da62-8e4a-4a0e-875d-3c348ae2378a",
+ "error": null,
+ "errorCode": null,
+ "logBytes": 3582317,
+ "lastOutputAt": "2030-11-21T23:11:03.928Z",
+ "currentToolName": null,
+ "currentStatusMessage": null,
+ "currentStatusUpdatedAt": null,
+ "lastEventAt": null
+}

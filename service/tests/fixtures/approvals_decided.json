@@ -1,0 +1,26 @@
+[
+ {
+  "id": "ad977d4d-89fa-4080-874d-a9c7b8a861c2",
+  "type": "request_board_approval",
+  "status": "approved",
+  "requestedByAgentId": "00000000-0000-4000-8000-0000000000a1",
+  "createdAt": "2030-09-02T08:50:26.739Z",
+  "decidedAt": "2030-09-02T08:54:25.407Z"
+ },
+ {
+  "id": "e3d20b12-683d-4302-8b3d-10235baf32ab",
+  "type": "request_board_approval",
+  "status": "approved",
+  "requestedByAgentId": "00000000-0000-4000-8000-0000000000a1",
+  "createdAt": "2030-09-02T08:50:25.980Z",
+  "decidedAt": "2030-09-02T08:54:25.790Z"
+ },
+ {
+  "id": "f2842123-39d1-4dff-898e-4df5973edf7e",
+  "type": "request_board_approval",
+  "status": "approved",
+  "requestedByAgentId": "00000000-0000-4000-8000-0000000000a1",
+  "createdAt": "2030-09-02T08:50:23.893Z",
+  "decidedAt": "2030-09-02T08:54:26.652Z"
+ }
+]

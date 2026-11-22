@@ -1,0 +1,74 @@
+[
+ {
+  "id": "d850e75b-35a1-4acf-8712-98e379878cbf",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "expired",
+  "resolvedAt": "2030-08-21T20:19:44.895Z",
+  "dismissedAt": null,
+  "title": "Question 1",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-08-21T19:38:06.467Z"
+ },
+ {
+  "id": "a60391d0-29df-4da2-8d6b-168bedb0eff1",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "answered",
+  "resolvedAt": "2030-08-23T01:45:57.579Z",
+  "dismissedAt": null,
+  "title": "Question 2",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-08-21T20:22:25.502Z"
+ },
+ {
+  "id": "0897b428-353f-4706-8729-6bc16e4a45b6",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "answered",
+  "resolvedAt": "2030-10-04T18:06:15.144Z",
+  "dismissedAt": null,
+  "title": "Question 3",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-08-23T01:49:54.292Z"
+ },
+ {
+  "id": "e7272d88-15ad-4aba-8de5-46fa3646d45d",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "answered",
+  "resolvedAt": "2030-10-04T18:34:43.125Z",
+  "dismissedAt": null,
+  "title": "Question 4",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-10-04T18:17:42.944Z"
+ },
+ {
+  "id": "762a1b94-a35f-4887-8e8d-9f376c35bfb9",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "answered",
+  "resolvedAt": "2030-10-06T04:21:46.745Z",
+  "dismissedAt": null,
+  "title": "Question 5",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-10-06T03:07:37.857Z"
+ },
+ {
+  "id": "dc75d6e1-10e6-4fdc-8cb0-3730fa5111e2",
+  "issueId": "397a2bcd-4527-494d-8ae3-daf96ce172fe",
+  "kind": "ask_user_questions",
+  "status": "cancelled",
+  "resolvedAt": "2030-10-09T19:07:56.323Z",
+  "dismissedAt": null,
+  "title": "Question 6",
+  "addresseeUserId": null,
+  "addresseeAgentId": null,
+  "createdAt": "2030-10-07T17:05:59.550Z"
+ }
+]

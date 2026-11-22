@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Example Docker Compose file for the bubble-screen service.
+# Put this next to a checkout of service/ (as ./src) and a .env (see ../.env.example).
+services:
+  bubble-screen:
+    build: ./src
+    env_file: .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
