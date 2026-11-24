@@ -541,14 +541,15 @@ static void frame(float t, float dt) {
   const bool giggle = tickle > .08f, petting = !giggle && pet > .1f, aware = TP.down || t - TP.last < 1.5f;
   const bool vListen = visiting && t < visitOut - .8f, vHappy = visiting && !vListen; const int vSide = visiting ? (visit.side ? 1 : -1) : 0;
 
-  // background: banded dither gradient, crossfaded on state change
+  // background: banded dither gradient, crossfaded on state change. The band dither
+  // repeats every 4 pixels and the crossfade mask every 8, so each row is one 8-pixel
+  // pattern filled two words at a time. (Filling per pixel during the crossfade cost
+  // ~8 ms and dropped every frame of a state change.)
   const int pthr = (int)(p * 16);
-  if (pthr >= 16) {   // settled: each row is a 4-pixel pattern, filled a word at a time
-    for (int y = 0; y < SKY; y++) { int b = rowB[y], fr = rowF[y]; uint32_t w = 0;
-      for (int x = 0; x < 4; x++) w |= (uint32_t)(fr > bay(x, y) ? pal.sky[b + 1] : pal.sky[b]) << (8 * x);
-      uint32_t *o = (uint32_t *)fb[y]; for (int x = 0; x < W / 4; x++) o[x] = w; }
-  } else for (int y = 0; y < SKY; y++) { int b = rowB[y], fr = rowF[y]; uint8_t *o = fb[y];
-    for (int x = 0; x < W; x++) { const uint8_t *s = bay(x >> 1, y >> 1) < pthr ? pal.sky : old.sky; o[x] = fr > bay(x, y) ? s[b + 1] : s[b]; } }
+  for (int y = 0; y < SKY; y++) { int b = rowB[y], fr = rowF[y]; uint32_t w[2] = {0, 0};
+    for (int x = 0; x < 8; x++) { const uint8_t *s = bay(x >> 1, y >> 1) < pthr ? pal.sky : old.sky;
+      w[x >> 2] |= (uint32_t)(fr > bay(x, y) ? s[b + 1] : s[b]) << (8 * (x & 3)); }
+    uint32_t *o = (uint32_t *)fb[y]; for (int x = 0; x < W / 4; x += 2) { o[x] = w[0]; o[x + 1] = w[1]; } }
   if (m == SLEEP) for (auto &s : stars) if (wsin(t * 1.6f + s.p) > -.2f) px(s.x, s.y, STAR);
   for (int k = 0; k < 4; k++) { auto &c = puffs[k]; c.x -= c.v * dt; if (c.x < -50) c.x = W + 20; puff(k, c.x, c.y, cp.puff); }
   streakBand(0, noiseL, t, cp); streakBand(1, noiseR, t, cp);
