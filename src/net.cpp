@@ -13,8 +13,12 @@ static uint16_t g_port = 8000;
 static volatile bool g_reload = false, g_wifiChanged = false;
 
 // Long-poll: the server holds the request until the status changes (<= 25 s), so
-// changes arrive within ~1 s. Connect timeout stays short; the read waits longer.
-static const uint32_t RETRY_MS = 3000, CONNECT_TIMEOUT_MS = 2000, READ_TIMEOUT_MS = 30000, MAX_BODY = 3072;
+// changes arrive within ~1 s. One keep-alive connection is reused across polls, so
+// a lossy link only pays for a TCP handshake after a failure. The connect timeout
+// leaves room for a couple of lost SYNs; the read outlasts the server's 25 s hold.
+static const uint32_t RETRY_MS = 1000, CONNECT_TIMEOUT_MS = 5000, READ_TIMEOUT_MS = 35000, MAX_BODY = 3072;
+static WiFiClient g_client;
+static HTTPClient g_http;
 static uint32_t g_version = 0; static bool g_haveVersion = false;
 
 static uint8_t idxOf(const char *s, const char *const *names, int n, uint8_t dflt) {
@@ -40,15 +44,15 @@ static bool fetch_once() {
   char url[140];
   if (g_haveVersion) snprintf(url, sizeof url, "http://%s:%u/api/now?v=%lu&wait=25", g_host, g_port, (unsigned long)g_version);
   else snprintf(url, sizeof url, "http://%s:%u/api/now", g_host, g_port);
-  HTTPClient http;
-  http.setConnectTimeout(CONNECT_TIMEOUT_MS); http.setTimeout(READ_TIMEOUT_MS);
-  if (!http.begin(url)) return false;
+  HTTPClient &http = g_http;
+  http.setReuse(true); http.setConnectTimeout(CONNECT_TIMEOUT_MS); http.setTimeout(READ_TIMEOUT_MS);
+  if (!http.begin(g_client, url)) return false;
   char auth[96]; snprintf(auth, sizeof auth, "Bearer %s", g_psk);
   http.addHeader("Authorization", auth);
   int code = http.GET();
-  if (code != 200) { Serial.printf("[net] http %d from %s\n", code, url); http.end(); return false; }
+  if (code != 200) { Serial.printf("[net] http %d from %s\n", code, url); http.end(); g_client.stop(); return false; }
   int len = http.getSize();
-  if (len > (int)MAX_BODY) { Serial.printf("[net] body too big (%d)\n", len); http.end(); return false; }
+  if (len > (int)MAX_BODY) { Serial.printf("[net] body too big (%d)\n", len); http.end(); g_client.stop(); return false; }
   String body = http.getString(); http.end();
   JsonDocument doc;
   if (deserializeJson(doc, body) || !doc["state"].is<const char *>()) { Serial.println("[net] bad json, keeping last state"); return false; }
@@ -76,7 +80,7 @@ static bool fetch_once() {
   if (doc["v"].is<uint32_t>()) { g_version = doc["v"].as<uint32_t>(); g_haveVersion = true; }
   static uint8_t lastState = 255; static uint32_t lastLog = 0;
   if (s.state != lastState || millis() - lastLog > 60000) {
-    Serial.printf("[net] ok state=%s waiting=%u title=%s\n", STATES[s.state], s.waiting, s.title);
+    Serial.printf("[net] ok state=%s waiting=%u rssi=%d title=%s\n", STATES[s.state], s.waiting, WiFi.RSSI(), s.title);
     lastState = s.state; lastLog = millis();
   }
   portENTER_CRITICAL(&mux); g_live = s; portEXIT_CRITICAL(&mux);
