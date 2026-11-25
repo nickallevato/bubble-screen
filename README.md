@@ -143,6 +143,7 @@ That's it. Your agent's name shows up in the corner, and the character starts li
 | `set host\|port\|psk\|ssid\|pass <value>` | Configure (saved). |
 | `invert` | Flip colour inversion. Some CYD panels need it: if dark looks washed out, try this. |
 | `flip` | Rotate 180°. |
+| `panel ili9341\|st7789` | Pick the display controller (saved, reboots). Some 2432S028R boards carry an ST7789: if the picture is garbled, try `panel st7789`. |
 | `skew <s>` | Jump the clock ahead (tests the clock rebase). |
 
 ---

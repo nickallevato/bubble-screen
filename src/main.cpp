@@ -13,6 +13,7 @@
 //   helpers                              play the helper demo once
 //   set host|port|psk|ssid|pass <value>  service address, password, Wi-Fi (saved)
 //   invert | flip                        panel colour inversion, rotate 180 (saved)
+//   panel ili9341|st7789                 display controller (saved, reboots)
 //   skew <seconds>                       jump the clock ahead (tests the rebase)
 
 #include <Arduino.h>
@@ -40,6 +41,9 @@ static spi_device_handle_t lcd;
 static uint16_t *dbuf[2];
 static spi_transaction_t trs[2];
 static bool g_invert = true, g_flip = false;
+// Some 2432S028R revisions carry an ST7789 instead of the ILI9341: different init,
+// SPI mode 3, RGB rather than BGR, and the glass mounted mirrored.
+static bool g_st7789 = false;
 
 static void IRAM_ATTR lcd_pre(spi_transaction_t *t) { gpio_set_level((gpio_num_t)PIN_DC, (int)(intptr_t)t->user); }
 static void lcd_cmd(uint8_t c) {
@@ -59,7 +63,8 @@ static void lcd_cmd_data(uint8_t c, std::initializer_list<uint8_t> d) {
   lcd_cmd(c); lcd_data(b, n);
 }
 static void lcd_orient() {
-  lcd_cmd_data(0x36, {(uint8_t)(g_flip ? 0x88 : 0x48)});   // MX (MY when flipped) | BGR: portrait, as the stand holds it
+  if (g_st7789) lcd_cmd_data(0x36, {(uint8_t)(g_flip ? 0xC0 : 0x00)});   // RGB; MX|MY when flipped
+  else lcd_cmd_data(0x36, {(uint8_t)(g_flip ? 0x88 : 0x48)});   // MX (MY when flipped) | BGR: portrait, as the stand holds it
   lcd_cmd(g_invert ? 0x21 : 0x20);
 }
 static void lcd_init() {
@@ -71,12 +76,20 @@ static void lcd_init() {
   bus.quadwp_io_num = -1; bus.quadhd_io_num = -1; bus.max_transfer_sz = W * STRIP * 2 + 8;
   ESP_ERROR_CHECK(spi_bus_initialize(HSPI_HOST, &bus, SPI_DMA_CH_AUTO));
   spi_device_interface_config_t dev = {};
-  dev.clock_speed_hz = SPI_MASTER_FREQ_80M; dev.mode = 0; dev.spics_io_num = PIN_CS;
+  dev.clock_speed_hz = SPI_MASTER_FREQ_80M; dev.mode = g_st7789 ? 3 : 0; dev.spics_io_num = PIN_CS;
   dev.queue_size = 3; dev.pre_cb = lcd_pre; dev.flags = SPI_DEVICE_NO_DUMMY;
   ESP_ERROR_CHECK(spi_bus_add_device(HSPI_HOST, &dev, &lcd));
   for (int i = 0; i < 2; i++) dbuf[i] = (uint16_t *)heap_caps_malloc(W * STRIP * 2, MALLOC_CAP_DMA);
 
-  lcd_cmd(0x01); delay(10);   // software reset (no reset pin on this board)
+  lcd_cmd(0x01); delay(g_st7789 ? 150 : 10);   // software reset (no reset pin on this board)
+  if (g_st7789) {
+    lcd_cmd(0x11); delay(120);           // sleep out
+    lcd_cmd_data(0x3A, {0x55});          // 16-bit colour
+    lcd_cmd_data(0xC6, {0x01});          // 111 Hz refresh, like the ILI9341's 119 Hz
+    lcd_orient();
+    lcd_cmd(0x29);
+    return;
+  }
   // The init table esp32_smartdisplay uses for the 2432S028Rv2.
   lcd_cmd_data(0xCF, {0x00, 0xC1, 0x30});
   lcd_cmd_data(0xED, {0x64, 0x03, 0x12, 0x81});
@@ -797,6 +810,10 @@ static void handleCmd(const char *c, float t) {
   if (!strncmp(c, "set ", 4)) { char k[8] = ""; const char *v = strchr(c + 4, ' ');
     if (v && v - (c + 4) < (int)sizeof k) { memcpy(k, c + 4, v - (c + 4)); net_set(k, v + 1); Serial.printf("[cfg] %s saved\n", k); return; } }
   if (!strcmp(c, "invert")) { g_invert = !g_invert; prefs.putBool("invert", g_invert); orientPending = true; Serial.printf("[cfg] invert=%d\n", g_invert); return; }
+  if (!strncmp(c, "panel ", 6)) { bool st = !strcmp(c + 6, "st7789");
+    if (!st && strcmp(c + 6, "ili9341")) { Serial.println("[cfg] panel must be ili9341 or st7789"); return; }
+    prefs.putBool("st7789", st); if (!prefs.isKey("invert")) prefs.putBool("invert", !st);
+    Serial.printf("[cfg] panel=%s, rebooting\n", st ? "st7789" : "ili9341"); Serial.flush(); delay(50); ESP.restart(); }
   if (!strcmp(c, "flip")) { g_flip = !g_flip; prefs.putBool("flip", g_flip); orientPending = true; Serial.printf("[cfg] flip=%d\n", g_flip); return; }
   if (*c) Serial.printf("[cmd] unknown: %s\n", c);
 }
@@ -806,7 +823,8 @@ void setup() {
   Serial.begin(115200);
   // Inversion is per PANEL (two "identical" boards can disagree): serial `invert` flips and saves it.
   prefs.begin("bubble", false);
-  if (prefs.isKey("invert")) g_invert = prefs.getBool("invert", true);
+  g_st7789 = prefs.getBool("st7789", false);
+  g_invert = prefs.isKey("invert") ? prefs.getBool("invert", true) : !g_st7789;
   g_flip = prefs.getBool("flip", false);
   if (prefs.isKey("agent")) prefs.getString("agent", g_agentName, sizeof g_agentName);
   if (!*g_agentName) strlcpy(g_agentName, "BUBBLES", sizeof g_agentName);
@@ -826,8 +844,8 @@ void setup() {
   float t = nowS(); setMode(THINK, t); ST.prev = THINK;
   frame(t, 0.016f); lcd_push(fb);
   gpio_set_level((gpio_num_t)PIN_BL, 1);
-  Serial.printf("[boot] bubble-screen, first frame at %lums, invert=%d flip=%d palette=%d heap=%u largest=%u\n",
-                (unsigned long)(millis() - t0), g_invert, g_flip, npal, (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+  Serial.printf("[boot] bubble-screen, first frame at %lums, panel=%s invert=%d flip=%d palette=%d heap=%u largest=%u\n",
+                (unsigned long)(millis() - t0), g_st7789 ? "st7789" : "ili9341", g_invert, g_flip, npal, (unsigned)ESP.getFreeHeap(), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
   semPush = xSemaphoreCreateBinary(); semDone = xSemaphoreCreateBinary(); xSemaphoreGive(semDone);
   xTaskCreatePinnedToCore(pushTask, "push", 4096, nullptr, 5, nullptr, 0);
   net_begin();

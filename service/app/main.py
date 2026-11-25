@@ -133,7 +133,14 @@ def from_env() -> FastAPI:
                             os.environ["PAPERCLIP_TOKEN"])
     agent, company = os.environ["AGENT_ID"], os.environ["COMPANY_ID"]
     cache: dict = {}
-    service = Service(lambda now: gather(client, agent, company, now, cache), os.environ["DEVICE_PSK"])
+    # The display fits 12 characters; AGENT_NAME shows something other than the agent's own name.
+    name = os.environ.get("AGENT_NAME", "").strip()
+    async def fetch(now: float):
+        snap = await gather(client, agent, company, now, cache)
+        if name:
+            snap.agent_name = name
+        return snap
+    service = Service(fetch, os.environ["DEVICE_PSK"])
     url = events_url(os.environ["PAPERCLIP_API_BASE"], company)
     def on_event(e: dict) -> None:
         log.info("live event %s", e.get("type"))
